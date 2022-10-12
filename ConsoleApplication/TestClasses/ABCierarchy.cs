@@ -10,7 +10,7 @@ namespace ConsoleApplication.TestClasses
 
     public class A
     {
-        public A helloA;
+       // public A helloA;
         public C C_obj { get; set; }
         public B B_obj { get; set; }
 

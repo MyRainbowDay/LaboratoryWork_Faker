@@ -6,32 +6,33 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+
 using System.Threading;
 using System.Threading.Tasks;
+
+
 
 namespace Faker
 {
     public class FakerGenerator
     {
-        // public method for usege
+
         public T Create<T>()
         {
             Thread.Sleep(1);
             return (T)Create(typeof(T));
         }
 
-        // private method for proceeding
+        //Type t - тип переменных,объектов
         private object Create(Type t)
         {
-            // Check whether there is cyclic dependency in the selected type or not
             if (!HasNotCyclicDependency(t))
                 throw new Exception("ERROR! Cyclic Dependency was found.");
 
-            // If we have a valueType variable -> create an instance with valueType
             // проверка ссылка это или нет
             if (t.IsValueType)
             {
-                try // try catch block for properly unit testing logic
+                try 
                 {
                     if (!t.IsSecurityCritical && t.IsSecurityTransparent && t.IsSerializable)
                         return GenerateInstanceWithValueTypeVariable(t);
@@ -43,13 +44,13 @@ namespace Faker
                     return GenerateInstanceWithValueTypeVariable(t);
                 }
             }
-            else // Otherwise -> work with reference type
+            else // ссылочный тип
             {
-                // If our reference type is a string - return a randomly generated string
+                // строка
                 if (t.IsSerializable && t.IsSecurityTransparent && t.IsSealed && !t.IsSecurityCritical)
                     return GenerateInstanceWithAStringValue(t,10);
 
-                // If our reference type is a generic type - create a generic variable
+                // list of lists
                 if (t.IsGenericType)
                     return GenerateInstanceWithAGenericTypeVariable(t);
 
@@ -58,42 +59,55 @@ namespace Faker
         }
 
 
-
-
-
-        // Method wich return an instance with an instance based on type variable
         private object CreateInstance(Type t)
         {
+            //Console.WriteLine(t);
             //устанавливает дефолт значения для примитивных типов и String
             if (t.IsValueType)
             {
                 // Для типов-значений вызов конструктора по умолчанию даст default(T).
+                //Activator Содержит методы, позволяющие локально или удаленно создавать типы объектов или получать ссылки на существующие удаленные объекты.
+                //Console.WriteLine(Activator.CreateInstance(t));
                 return Activator.CreateInstance(t);
             }
             else
                 // Для ссылочных типов значение по умолчанию всегда null.
                 return null;
+
+            
         }
 
-        // Method wich will generate a value type variable
+        //примитивные типы
         private object GenerateInstanceWithValueTypeVariable(Type t)
         {
             Thread.Sleep(1);
-            var instance = CreateInstance(t);
+            //var instance = CreateInstance(t);
 
             var valueTypeGeneratorMethods = GetAllValueTypesGeneratorMethodsName();
+
            
             foreach (var item in valueTypeGeneratorMethods)
             {
                 //NonPublic извлекает не публичные методы
                 //Instance получает только методы экземпляра
+                //Здесь просиходит вызов методов
+                /*  GenerateRandomDoubleNumber
+                    GenerateRandomDecimalNumber
+                    GenerateRandomFloatNumber
+                    GenerateRandomLongNumber
+                    GenerateRandomIntegerNumber
+                    GenerateRandomShortNumber
+                    GenerateRandomCharValue
+                    GenerateRandomByteNumber
+                    GenerateRandomBoolValue*/
                 var temp = GetType().GetMethod(item, BindingFlags.NonPublic | BindingFlags.Instance).Invoke(this, new object[] { });
 
+                //проверка типа с типом метода
                 if (t != temp.GetType())
-                    continue;
+                    continue;       //если не совпадает
                 else
                 {
-                    instance = temp;
+                    var instance = temp;
                     return instance;
                 }
 
@@ -101,7 +115,7 @@ namespace Faker
             throw new Exception("Error. Value type was not created.");
         }
 
-        // Method wich will generate a string variable
+
         private object GenerateInstanceWithAStringValue(Type t, byte strLength)
         {
             Thread.Sleep(1);
@@ -134,7 +148,7 @@ namespace Faker
             return sb.ToString();
         }
 
-        // Method wich will generate a generic variable
+
         private object GenerateInstanceWithAGenericTypeVariable(Type t)
         {
             Thread.Sleep(1);
@@ -142,6 +156,7 @@ namespace Faker
             //Метод CreateInstance создает экземпляр типа, определенного в сборке, путем вызова конструктора, который лучше всего соответствует указанным аргументам.
             var instance = (IList)Activator.CreateInstance(t);
 
+            //получение массива аргументов универсального типа
             var genericTypeInsideVariable = t.GenericTypeArguments.FirstOrDefault();
 
             instance = GenerateRandomList(genericTypeInsideVariable, instance, 5);
@@ -149,24 +164,83 @@ namespace Faker
             return instance;
         }
 
-        // Method wich will generate a class variable
+        private ConstructorInfo ReceiveNewConstructor(Type t,ConstructorInfo prevConstructor)
+        {
+
+            var listOfConstructors = t.GetConstructors();
+            int index = 0;
+
+            //если означает,что все конструкторы закончились (все они отработали с ошибкой)
+            if (prevConstructor.GetParameters().Length == listOfConstructors[0].GetParameters().Length)
+                return null;
+
+            var max = listOfConstructors[0];
+            foreach(var constructor in listOfConstructors)
+            {
+                if (constructor.GetParameters().Length > max.GetParameters().Length && constructor.GetParameters().Length < prevConstructor.GetParameters().Length)
+                {
+                    index = constructor.GetParameters().Length;
+                }
+            }
+
+            ConstructorInfo newConstructor = listOfConstructors.Where(c => c.GetParameters().Length == index).First();
+            return newConstructor;
+        }
+
         private object GenerateInstanceWithAClassTypeVariable(Type t)
         {
             var maxParamConstructor = FindAConstructorWithMaxParametersNumber(t);
             var parameters = GenerateParamsForAClassTypeVariables(t);
 
-            // Generating an object with a random data 
-            var randomlyGeneratedObject = maxParamConstructor.Invoke(parameters);
+            //вызов конструктора с макс параметррами - СОЗДАНИЕ ОБЪЕКТА
+            bool flag = false;
+            bool cycle = true;
 
+            Object randomlyGeneratedObject = 0;
+            while (cycle)
+            {
+                try
+                {
+                    if (flag == false)
+                    {
+                        randomlyGeneratedObject = maxParamConstructor.Invoke(parameters);
+                        cycle = false;
+                    }                                
+                    else
+                    {
+                        maxParamConstructor = ReceiveNewConstructor(t, maxParamConstructor);
+
+                        //ни один объект не был создан из всех предоставляемых конструкторов
+                        if (maxParamConstructor == null)
+                            return null;
+
+                        parameters = GenerateParamsForAClassTypeVariables(t);
+                        randomlyGeneratedObject = maxParamConstructor.Invoke(parameters);
+                        cycle = false;
+                    }
+                }
+                catch
+                {
+                    flag = true;                  
+                }
+            }
+
+
+          
+
+            //property - получаем список всех свойств (например для класса Person это Name,Surname,Age,IsHasDog
             var propertyInfos = randomlyGeneratedObject.GetType().GetProperties().Where(p => !p.SetMethod.IsPrivate).ToList();
+            //публичные поля
             var publicFields = randomlyGeneratedObject.GetType().GetFields().Where(p => !p.IsPrivate).ToList();
 
+            //если в конструкторе что-то не заполнено то автоматически заполнить
             for (int i = 0; i < propertyInfos.Count; i++)
             {
-                var generatedObjectType = randomlyGeneratedObject.GetType();
-                var objectPropertyTakenByName = generatedObjectType.GetProperty(propertyInfos[i].Name);
+                Type generatedObjectType = randomlyGeneratedObject.GetType();
+                PropertyInfo objectPropertyTakenByName = generatedObjectType.GetProperty(propertyInfos[i].Name);
 
-                var objectPropertyType = objectPropertyTakenByName.GetValue(randomlyGeneratedObject).GetType();
+                //проперти уже содержит тип
+                var objectPropertyType = objectPropertyTakenByName.PropertyType;
                 var generatedProperty = this.Create(objectPropertyType);
 
                 objectPropertyTakenByName.SetValue(randomlyGeneratedObject,
@@ -185,20 +259,20 @@ namespace Faker
                 generatedProperty);
             }
 
-            // Return created object
+            // рандомно созданный объект
             return randomlyGeneratedObject;
         }
         private object[] GenerateParamsForAClassTypeVariables(Type t)
         {
             ConstructorInfo maxParamConstructor = FindAConstructorWithMaxParametersNumber(t);
 
-            // Getting its parameters information
+            // получение информации - получаем типы параметров в конструкторе
             ParameterInfo[] parametersInfo = maxParamConstructor.GetParameters();
 
-            // Generating an array wich will have random generated parameters to create a new object Type t
+            // генерация массива который будет иметь рандомные параметры чтобы создать новый объект типа t
             object[] parameters = new object[parametersInfo.Length];
 
-            // Filling array of object with a random data using the recursion
+            // заполнение массива - присваиваем параметрам конструктора рандомные значения
             for (int i = 0; i < parameters.Length; i++)
             {
                 parameters[i] = this.Create(parametersInfo[i].ParameterType);
@@ -206,39 +280,39 @@ namespace Faker
 
             return parameters;
         }
+
+        //поиск конструктора с максимальным числом параметров
         private ConstructorInfo FindAConstructorWithMaxParametersNumber(Type t)
         {
-            // Getting all class constructors
+            // получить все конструкторы класса
             var constructorInfoObjects = t.GetConstructors();
 
-            // Looking for constructor with the biggest number of parameters
+            // поиск конструктора с максимальным числом параметров
             int ctorParametersLength = 0;
-            byte ctorIndex = 0;
-            byte counter = 0;
             foreach (var constructor in constructorInfoObjects)
             {
                 if (constructor.GetParameters().Length > ctorParametersLength)
                 {
-                    ctorIndex = counter;
                     ctorParametersLength = constructor.GetParameters().Length;
                 }
-                counter++;
             }
 
-            // Getting constructor with the biggest number of parameters
+            // получение конструктора с максимальным числом параметров
             var maxParamConstructor = constructorInfoObjects.Where(c => c.GetParameters().Length == ctorParametersLength).First();
-
+            
             return maxParamConstructor;
         }
 
-        // Method wich will generate a struc variable
+
         private object GenerateInstanceWithAStructureVariable(Type t)
         {
-            // If we deal with a structure -> we can create it the same way as a class type variable
+            // тоже самое как и у класса
             return GenerateInstanceWithAClassTypeVariable(t);
         }
 
-        // Methods wich generate random value type variables
+
+////////////////////////////////////////////  ПРИМИТИВНЫЕ ТИПЫ    ////////////////////////////////////////////////////////////////////////////////
+
         private int GenerateRandomIntegerNumber()
         {
             Random random = new Random();
@@ -303,31 +377,34 @@ namespace Faker
             return (decimal)GenerateRandomDoubleNumber();
         }
 
-        // Methods wich will generate random data with a generic variables
+
 
         private IList GenerateRandomList(Type t, IList emptyList, int countOfTheVariablesInside)
         {
-            // Create a specific amount of variables
+
             for (int i = 0; i < countOfTheVariablesInside; i++)
             {
-                // Searching for a constructor with maxed number of parameters
+                // Поиск конструктора с максимальным числом параметров
                 object variable;
-                var sortedCtors = t.GetConstructors().ToList();
 
+                List<ConstructorInfo> sortedCtors = t.GetConstructors().ToList();
+                
+                //x И y -два разных констуркторы которые сравниваются
                 sortedCtors.Sort((x, y) => x.GetParameters().Length.CompareTo(y.GetParameters().Length));
+
                 var ctor = sortedCtors.FirstOrDefault();
                 
-                // If there is no constructor with parameters -> create default instance
+                // если нету конструктора с параметрами -> создать дефолтный экземпляр
                 if (ctor == null || ctor.GetParameters().Length == 0)
                 {
                     variable = Activator.CreateInstance(t);
                 }
-                else // Otherwise -> create instance using the specific object parameters
+                else // иначе создать экземпляр с параметрами
                 {
                     variable = Activator.CreateInstance(t, GenerateParamsForAClassTypeVariables(t));
                 }
 
-                // Convert an object type to the needed type
+                // конвертирование тип объекта в нужный тип
                 var createdItem = Convert.ChangeType(this.Create(t), t);
 
                 emptyList.Add(createdItem);
@@ -335,7 +412,7 @@ namespace Faker
             return emptyList;
         }
 
-        // Making a list of all methods wich output is a value type variable
+        // список методов для генерации рандомных значений для примитивов
         private List<string> GetAllValueTypesGeneratorMethodsName()
         {
             List<string> result = new List<string>();
@@ -353,32 +430,37 @@ namespace Faker
             return result;
         }
 
-        // Main method wich is looking for a cyclic dependency
+        // поиск циклической зависимости
         private bool HasNotCyclicDependency(Type t)
         {
-            // Getting main type properties 
+            // список свойств 
             var objectProperties = t.GetProperties().ToList();
 
             foreach (var property in objectProperties)
             {
+                //рекурсивный вызов для каждого свойства
+                // t - тип объекта который мы проверяем на зависимости
+                // и второй - тип данных отобранного поля
                 if (WrongInsideDependency(t, property.PropertyType))
                     return false;
             }
             return true;
         }
 
-        // Supply method wich is looking for a cyclic dependency using the recursion
+        // рекурсивный поиск зависимостей
         private bool WrongInsideDependency(Type baseType, Type currentType)
         {
-            // Getting current type properties 
+            // текущий тип свойства
             var currObjectProperties = currentType.GetProperties().ToList();
 
+            //здесь происходит отбор всех полей у нового типа,после чего полученные типы сравниваются
+            //с типом главного бъекта. И если типы совпали -> нашли зависимость
             foreach (var property in currObjectProperties)
             {
-                // If we have the same property wich is equals to the base type -> cyclic dependency was found
+                // циклическая зависимость
                 if (property.PropertyType == baseType)
                     return true;
-                else // If not - start another recursion search
+                else //если нет -> Другой рекурсивный поиск
                     WrongInsideDependency(baseType, property.PropertyType);
             }
             return false;

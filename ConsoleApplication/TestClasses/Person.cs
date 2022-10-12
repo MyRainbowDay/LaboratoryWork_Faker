@@ -16,7 +16,16 @@ namespace ConsoleApplication.TestClasses
             IsHasDog = isHasDog;
         }
 
-        public int TimesHeWasFired { get; set; }
+        public Person(string name,string surname)
+        {
+            Surname = surname;
+            Name = name;
+        }
+
+        private Person(string surname)
+        {
+            Surname = surname;
+        }
 
         public string Name { get; set; }
         public string Surname { get; set; }
@@ -25,3 +34,4 @@ namespace ConsoleApplication.TestClasses
 
     }
 }
+

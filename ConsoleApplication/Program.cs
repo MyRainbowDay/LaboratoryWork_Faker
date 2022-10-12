@@ -55,11 +55,14 @@ namespace ConsoleApplication
             Console.WriteLine("\nReference type object (Single Person):\n");
 
             var person = faker.Create<Person>();
-            Console.WriteLine($"Name: {person.Name}");
-            Console.WriteLine($"Surname: {person.Surname}");
-            Console.WriteLine($"Age: {person.Age}");
-            Console.WriteLine($"Have a dog: {person.IsHasDog}");
-            Console.WriteLine("----------------------------------------------");
+            if (person != null)
+            {
+                Console.WriteLine($"Name: {person.Name}");
+                Console.WriteLine($"Surname: {person.Surname}");
+                Console.WriteLine($"Age: {person.Age}");
+                Console.WriteLine($"Have a dog: {person.IsHasDog}");
+                Console.WriteLine("----------------------------------------------");
+            }
 
             Console.WriteLine("\nList of ints:\n");
 
@@ -92,11 +95,14 @@ namespace ConsoleApplication
 
             foreach (var personItem in persons)
             {
-                Console.WriteLine($"Person_{persons.IndexOf(personItem)}");
-                Console.WriteLine($"Name: {personItem.Name}");
-                Console.WriteLine($"Surname: {personItem.Surname}");
-                Console.WriteLine($"Age: {personItem.Age}");
-                Console.WriteLine($"Have a dog: {personItem.IsHasDog}\n");
+                if (personItem != null)
+                {
+                    Console.WriteLine($"Person_{persons.IndexOf(personItem)}");
+                    Console.WriteLine($"Name: {personItem.Name}");
+                    Console.WriteLine($"Surname: {personItem.Surname}");
+                    Console.WriteLine($"Age: {personItem.Age}");
+                    Console.WriteLine($"Have a dog: {personItem.IsHasDog}\n");
+                }
             }
 
             Console.WriteLine("----------------------------------------------");
@@ -107,6 +113,7 @@ namespace ConsoleApplication
             var cinema = faker.Create<Cinema>();
             Console.WriteLine($"NumberOfFloors: {cinema.NumberOfFloors}");
             Console.WriteLine($"NumberOfSeats: {cinema.NumberOfSeats}");
+
 
             Console.WriteLine("----------------------------------------------");
             Console.WriteLine("\nCyclic dependency cheeeeck:\n");
